@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 #
-# Convert comic files (CBR, CBZ, PDF, or image directories) to Kindle Colorsoft AZW3.
-# Uses go-comic-converter (-> EPUB) then Calibre's ebook-convert (-> AZW3).
+# Convert comic files (CBR, CBZ, PDF, or image directories) for Kindle Colorsoft.
+# Produces EPUB by default; pass -azw3 to also convert to AZW3 via Calibre.
 #
 # Usage:
 #   ./convert-kindle.sh mycomic.cbr
+#   ./convert-kindle.sh -azw3 mycomic.cbr
 #   ./convert-kindle.sh ./comics-directory/
 #
 set -euo pipefail
@@ -12,6 +13,15 @@ set -euo pipefail
 GO_COMIC_CONVERTER="${GO_COMIC_CONVERTER:-go-comic-converter}"
 EBOOK_CONVERT="${EBOOK_CONVERT:-ebook-convert}"
 PROFILE="KSC"
+DO_AZW3=false
+
+# Parse flags
+while [[ "${1:-}" == -* ]]; do
+    case "$1" in
+        -azw3) DO_AZW3=true; shift ;;
+        *) die "Unknown option: $1" ;;
+    esac
+done
 
 # --- helpers ---
 die() { printf 'Error: %s\n' "$1" >&2; exit 1; }
@@ -19,32 +29,31 @@ die() { printf 'Error: %s\n' "$1" >&2; exit 1; }
 check_deps() {
     command -v "$GO_COMIC_CONVERTER" >/dev/null 2>&1 \
         || die "go-comic-converter not found in PATH. Install it or set GO_COMIC_CONVERTER."
-    command -v "$EBOOK_CONVERT" >/dev/null 2>&1 \
-        || die "ebook-convert (Calibre) not found in PATH. Install it or set EBOOK_CONVERT."
+    if [[ "$DO_AZW3" == true ]]; then
+        command -v "$EBOOK_CONVERT" >/dev/null 2>&1 \
+            || die "ebook-convert (Calibre) not found in PATH. Install it or set EBOOK_CONVERT."
+    fi
 }
 
-# Convert a single input (file or image directory) to AZW3.
 convert_one() {
     local input="$1"
     local base
 
     if [[ -d "$input" ]]; then
-        # For directories, strip trailing slashes to derive the name.
         base="${input%/}"
     else
-        # Strip extension for files.
         base="${input%.*}"
     fi
 
     local epub="${base}.epub"
-    local azw3="${base}.azw3"
 
     echo "--- Converting: $input ---"
 
-    # Step 1: comic -> EPUB
+    # comic -> EPUB
     "$GO_COMIC_CONVERTER" \
         -profile "$PROFILE" \
         -grayscale=false \
+        -titlepage 0 \
         -input "$input" \
         -output "$epub"
 
@@ -53,23 +62,26 @@ convert_one() {
         return 1
     fi
 
-    # Step 2: EPUB -> AZW3
-    "$EBOOK_CONVERT" "$epub" "$azw3"
+    if [[ "$DO_AZW3" == true ]]; then
+        local azw3="${base}.azw3"
+        "$EBOOK_CONVERT" "$epub" "$azw3"
 
-    if [[ ! -f "$azw3" ]]; then
-        echo "  FAILED: AZW3 was not created for $input" >&2
-        return 1
+        if [[ ! -f "$azw3" ]]; then
+            echo "  FAILED: AZW3 was not created for $input" >&2
+            return 1
+        fi
+
+        rm -f "$epub"
+        echo "  OK: $azw3"
+    else
+        echo "  OK: $epub"
     fi
 
-    # Step 3: clean up intermediate EPUB
-    rm -f "$epub"
-
-    echo "  OK: $azw3"
     return 0
 }
 
 # --- main ---
-[[ $# -ge 1 ]] || die "Usage: $0 <file|directory> [file|directory ...]"
+[[ $# -ge 1 ]] || die "Usage: $0 [-azw3] <file|directory> [file|directory ...]"
 check_deps
 
 succeeded=0
