@@ -23,7 +23,7 @@ while [[ "${1:-}" == -* ]]; do
         -cs|-colorsoft)             KCC_PROFILE="KCS"; shift ;;
         -s|-scribe)                KCC_PROFILE="KS"; shift ;;
         -scs|-scribe-colorsoft)    KCC_PROFILE="KSCS"; shift ;;
-        -mg|-manga)                KCC_ARGS+=(-m -c 0); shift ;;
+        -mg|-manga)                KCC_ARGS+=(-m -c 0 -n); shift ;;
         *) die "Unknown option: $1" ;;
     esac
 done
