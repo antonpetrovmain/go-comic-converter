@@ -1,87 +1,82 @@
 #!/usr/bin/env bash
 #
-# Convert comic files (CBR, CBZ, PDF, or image directories) for Kindle Colorsoft.
-# Produces EPUB by default; pass -azw3 to also convert to AZW3 via Calibre.
+# Convert comic files (CBR, CBZ, PDF) for Kindle devices using KCC.
+# Produces EPUB by default. Use -scribe for Kindle Scribe, -colorsoft for Kindle Colorsoft.
 #
 # Usage:
 #   ./convert-kindle.sh mycomic.cbr
-#   ./convert-kindle.sh -azw3 mycomic.cbr
-#   ./convert-kindle.sh ./comics-directory/
+#   ./convert-kindle.sh -colorsoft mycomic.cbr
+#   ./convert-kindle.sh -scribe ./comics-directory/
 #
 set -euo pipefail
 
-GO_COMIC_CONVERTER="${GO_COMIC_CONVERTER:-go-comic-converter}"
-EBOOK_CONVERT="${EBOOK_CONVERT:-ebook-convert}"
-PROFILE="KSC"
-DO_AZW3=false
+KCC_C2E="${KCC_C2E:-/tmp/kcc-venv/bin/python /tmp/kcc/kcc-c2e.py}"
+KCC_PROFILE="KCS"
+KCC_ARGS=()
+
+# --- helpers (must be defined before flag parsing) ---
+die() { printf 'Error: %s\n' "$1" >&2; exit 1; }
 
 # Parse flags
 while [[ "${1:-}" == -* ]]; do
     case "$1" in
-        -azw3) DO_AZW3=true; shift ;;
+        -cs|-colorsoft)             KCC_PROFILE="KCS"; shift ;;
+        -s|-scribe)                KCC_PROFILE="KS"; shift ;;
+        -scs|-scribe-colorsoft)    KCC_PROFILE="KSCS"; shift ;;
         *) die "Unknown option: $1" ;;
     esac
 done
 
-# --- helpers ---
-die() { printf 'Error: %s\n' "$1" >&2; exit 1; }
+# Always: color, EPUB output, no kepub extension
+KCC_ARGS+=(--forcecolor -f EPUB --nokepub)
 
 check_deps() {
-    command -v "$GO_COMIC_CONVERTER" >/dev/null 2>&1 \
-        || die "go-comic-converter not found in PATH. Install it or set GO_COMIC_CONVERTER."
-    if [[ "$DO_AZW3" == true ]]; then
-        command -v "$EBOOK_CONVERT" >/dev/null 2>&1 \
-            || die "ebook-convert (Calibre) not found in PATH. Install it or set EBOOK_CONVERT."
-    fi
+    local kcc_bin="${KCC_C2E%% *}"
+    command -v "$kcc_bin" >/dev/null 2>&1 \
+        || die "KCC not found. Install it or set KCC_C2E."
+    command -v 7zz >/dev/null 2>&1 || command -v 7z >/dev/null 2>&1 \
+        || die "7z/7zz not found. Install with: brew install 7zip p7zip"
 }
 
 convert_one() {
     local input="$1"
-    local base
+    local base dir
 
     if [[ -d "$input" ]]; then
         base="${input%/}"
+        dir="$(dirname "$base")"
     else
         base="${input%.*}"
+        dir="$(dirname "$input")"
     fi
-
-    local epub="${base}.epub"
 
     echo "--- Converting: $input ---"
 
-    # comic -> EPUB
-    "$GO_COMIC_CONVERTER" \
-        -profile "$PROFILE" \
-        -grayscale=false \
-        -titlepage 0 \
-        -input "$input" \
-        -output "$epub"
+    local epub="${base}.epub"
+
+    $KCC_C2E -p "$KCC_PROFILE" "${KCC_ARGS[@]}" -o "$dir" "$input"
 
     if [[ ! -f "$epub" ]]; then
-        echo "  FAILED: EPUB was not created for $input" >&2
-        return 1
-    fi
+        # KCC sometimes appends _kccN suffix
+        local basename
+        basename="$(basename "$base")"
+        local kcc_output
+        kcc_output="$(find "$dir" -maxdepth 1 -name "${basename}_kcc*.epub" -print -quit 2>/dev/null)"
 
-    if [[ "$DO_AZW3" == true ]]; then
-        local azw3="${base}.azw3"
-        "$EBOOK_CONVERT" "$epub" "$azw3"
-
-        if [[ ! -f "$azw3" ]]; then
-            echo "  FAILED: AZW3 was not created for $input" >&2
+        if [[ -n "$kcc_output" && -f "$kcc_output" ]]; then
+            mv "$kcc_output" "$epub"
+        else
+            echo "  FAILED: EPUB was not created for $input" >&2
             return 1
         fi
-
-        rm -f "$epub"
-        echo "  OK: $azw3"
-    else
-        echo "  OK: $epub"
     fi
 
+    echo "  OK: $epub"
     return 0
 }
 
 # --- main ---
-[[ $# -ge 1 ]] || die "Usage: $0 [-azw3] <file|directory> [file|directory ...]"
+[[ $# -ge 1 ]] || die "Usage: $0 [-cs|-s|-scs] <file|directory> [file|directory ...]"
 check_deps
 
 succeeded=0
