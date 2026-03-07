@@ -28,8 +28,8 @@ while [[ "${1:-}" == -* ]]; do
     esac
 done
 
-# Always: color, EPUB output, no kepub extension
-KCC_ARGS+=(--forcecolor -f EPUB --nokepub)
+# Always: color, EPUB output, no kepub extension, split at 200MB
+KCC_ARGS+=(--forcecolor -f EPUB --nokepub --ts 200)
 
 check_deps() {
     local kcc_bin="${KCC_C2E%% *}"
