@@ -10,7 +10,7 @@
 #
 set -euo pipefail
 
-KCC_C2E="${KCC_C2E:-/tmp/kcc-venv/bin/python /tmp/kcc/kcc-c2e.py}"
+KCC_C2E="${KCC_C2E:-$HOME/.local/share/kcc/.venv/bin/python $HOME/.local/share/kcc/kcc-c2e.py}"
 KCC_PROFILE="KCS"
 KCC_ARGS=()
 
