@@ -23,14 +23,14 @@ while [[ "${1:-}" == -* ]]; do
         -cs|-colorsoft)             KCC_PROFILE="KCS"; shift ;;
         -s|-scribe)                KCC_PROFILE="KS"; shift ;;
         -scs|-scribe-colorsoft)    KCC_PROFILE="KSCS"; shift ;;
-        -mg|-manga)                KCC_ARGS+=(-m -c 0 -n); shift ;;
-        -np|-noprocess)            KCC_ARGS+=(-c 0 -n); shift ;;
+        -mg|-manga)                KCC_ARGS+=(-m); shift ;;
+        -np|-nocrop)               KCC_ARGS+=(-c 0); shift ;;
         *) die "Unknown option: $1" ;;
     esac
 done
 
-# Always: color, EPUB output, no kepub extension, split at 200MB
-KCC_ARGS+=(--forcecolor -f EPUB --nokepub --ts 200)
+# Always: color, EPUB, no kepub ext, mozjpeg compression, quality 60, split at 200MB
+KCC_ARGS+=(--forcecolor -f EPUB --nokepub --mozjpeg --jpeg-quality 60 --ts 200)
 
 check_deps() {
     local kcc_bin="${KCC_C2E%% *}"
