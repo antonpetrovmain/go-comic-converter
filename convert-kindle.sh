@@ -22,7 +22,7 @@ while [[ "${1:-}" == -* ]]; do
     case "$1" in
         -cs|-colorsoft)             KCC_PROFILE="KCS"; shift ;;
         -s|-scribe)                KCC_PROFILE="KS"; shift ;;
-        -scs|-scribe-colorsoft)    KCC_PROFILE="KSCS"; shift ;;
+        -scs|-scribe-colorsoft)    KCC_PROFILE="KCS"; shift ;;
         -mg|-manga)                KCC_ARGS+=(-m); shift ;;
         -np|-nocrop)               KCC_ARGS+=(-c 0); shift ;;
         *) die "Unknown option: $1" ;;
