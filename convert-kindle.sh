@@ -24,6 +24,7 @@ while [[ "${1:-}" == -* ]]; do
         -s|-scribe)                KCC_PROFILE="KS"; shift ;;
         -scs|-scribe-colorsoft)    KCC_PROFILE="KSCS"; shift ;;
         -mg|-manga)                KCC_ARGS+=(-m -c 0 -n); shift ;;
+        -np|-noprocess)            KCC_ARGS+=(-c 0 -n); shift ;;
         *) die "Unknown option: $1" ;;
     esac
 done
@@ -77,7 +78,7 @@ convert_one() {
 }
 
 # --- main ---
-[[ $# -ge 1 ]] || die "Usage: $0 [-cs|-s|-scs] [-mg] <file|directory> [file|directory ...]"
+[[ $# -ge 1 ]] || die "Usage: $0 [-cs|-s|-scs] [-mg|-np] <file|directory> [file|directory ...]"
 check_deps
 
 succeeded=0
