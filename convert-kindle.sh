@@ -29,8 +29,8 @@ while [[ "${1:-}" == -* ]]; do
     esac
 done
 
-# Always: color, EPUB, no kepub ext, mozjpeg compression, quality 60, split at 200MB
-KCC_ARGS+=(--forcecolor -f EPUB --nokepub --mozjpeg --jpeg-quality 60 --ts 200)
+# Always: color, EPUB, no kepub ext, quality 60, baseline JPEG, split at 200MB
+KCC_ARGS+=(--forcecolor -f EPUB --nokepub --jpeg-quality 60 --ts 200)
 
 check_deps() {
     local kcc_bin="${KCC_C2E%% *}"
