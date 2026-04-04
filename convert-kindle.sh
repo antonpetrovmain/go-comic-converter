@@ -1,17 +1,34 @@
 #!/usr/bin/env bash
 #
 # Convert comic files (CBR, CBZ, PDF) for Kindle devices using KCC.
-# Produces EPUB by default. Use -scribe for Kindle Scribe, -colorsoft for Kindle Colorsoft.
+# Produces EPUB for Send to Kindle (web upload, 200MB limit).
+#
+# Defaults: Kindle Scribe Colorsoft (KSCS, 1986x2648), JPEG quality 90,
+#           cropping disabled (prevents blank pages on Scribe hardware).
+#
+# Device flags:
+#   -scs|-scribe-colorsoft  Kindle Scribe Colorsoft (default)
+#   -s|-scribe              Kindle Scribe (1860x2480)
+#   -cs|-colorsoft          Kindle Colorsoft 7" (1264x1680, crop enabled)
+#
+# Options:
+#   -mg|-manga              Manga mode (right-to-left)
+#   -np|-nocrop             Disable cropping (default for Scribe devices)
+#   -crop                   Force enable cropping
+#   -q|--quality <1-100>    JPEG quality (default: 90)
 #
 # Usage:
 #   ./convert-kindle.sh mycomic.cbr
-#   ./convert-kindle.sh -colorsoft mycomic.cbr
-#   ./convert-kindle.sh -scribe ./comics-directory/
+#   ./convert-kindle.sh -mg manga-vol1.cbz
+#   ./convert-kindle.sh -s -crop mycomic.cbr
+#   ./convert-kindle.sh -cs ./comics-directory/
 #
 set -euo pipefail
 
-KCC_C2E="${KCC_C2E:-$HOME/.local/share/kcc/.venv/bin/python $HOME/.local/share/kcc/kcc-c2e.py}"
-KCC_PROFILE="KCS"
+KCC_C2E="${KCC_C2E:-$HOME/.local/share/kcc/.venv/bin/kcc-c2e}"
+KCC_PROFILE="KSCS"
+KCC_QUALITY=90
+KCC_CROP_DISABLE=true
 KCC_ARGS=()
 
 # --- helpers (must be defined before flag parsing) ---
@@ -20,17 +37,24 @@ die() { printf 'Error: %s\n' "$1" >&2; exit 1; }
 # Parse flags
 while [[ "${1:-}" == -* ]]; do
     case "$1" in
-        -cs|-colorsoft)             KCC_PROFILE="KCS"; shift ;;
+        -cs|-colorsoft)             KCC_PROFILE="KCS"; KCC_CROP_DISABLE=false; shift ;;
         -s|-scribe)                KCC_PROFILE="KS"; shift ;;
-        -scs|-scribe-colorsoft)    KCC_PROFILE="KCS"; shift ;;
+        -scs|-scribe-colorsoft)    KCC_PROFILE="KSCS"; shift ;;
         -mg|-manga)                KCC_ARGS+=(-m); shift ;;
-        -np|-nocrop)               KCC_ARGS+=(-c 0); shift ;;
+        -np|-nocrop)               KCC_CROP_DISABLE=true; shift ;;
+        -crop)                     KCC_CROP_DISABLE=false; shift ;;
+        -q|--quality)              KCC_QUALITY="$2"; shift 2 ;;
         *) die "Unknown option: $1" ;;
     esac
 done
 
-# Always: color, EPUB, no kepub ext, quality 60, baseline JPEG, split at 200MB
-KCC_ARGS+=(--forcecolor -f EPUB --nokepub --jpeg-quality 60 --ts 200)
+# Disable cropping for Scribe devices (prevents blank/cut-off pages)
+if [[ "$KCC_CROP_DISABLE" == true ]]; then
+    KCC_ARGS+=(-c 0)
+fi
+
+# Always: color, EPUB, no kepub ext, split at 200MB (Send to Kindle web limit)
+KCC_ARGS+=(--forcecolor -f EPUB --nokepub --jpeg-quality "$KCC_QUALITY" --ts 200)
 
 check_deps() {
     local kcc_bin="${KCC_C2E%% *}"
@@ -78,7 +102,7 @@ convert_one() {
 }
 
 # --- main ---
-[[ $# -ge 1 ]] || die "Usage: $0 [-cs|-s|-scs] [-mg|-np] <file|directory> [file|directory ...]"
+[[ $# -ge 1 ]] || die "Usage: $0 [-cs|-s|-scs] [-mg] [-np|-crop] [-q N] <file|dir> [...]"
 check_deps
 
 succeeded=0
